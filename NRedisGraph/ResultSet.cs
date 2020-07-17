@@ -100,16 +100,13 @@ namespace NRedisGraph
 
                     yield return new Record(Header.SchemaNames, parsedRow);
                 }
-
-                yield break;
             }
         }
 
-        private Node DeserializeNode(RedisResult[] rawNodeData)
+        private T DeserializeNode<T>(RedisResult[] rawNodeData)
+        
         {
-            var node = new Node();
-
-            DeserializeGraphEntityId(node, rawNodeData[0]);
+            var node = new T((int) rawNodeData[0]);
 
             var labelIndices = (int[])rawNodeData[1];
 
@@ -127,13 +124,12 @@ namespace NRedisGraph
 
         private Edge DeserializeEdge(RedisResult[] rawEdgeData)
         {
-            var edge = new Edge();
-
-            DeserializeGraphEntityId(edge, rawEdgeData[0]);
-
-            edge.RelationshipType = _graphCache.GetRelationshipType((int)rawEdgeData[1]);
-            edge.Source = (int)rawEdgeData[2];
-            edge.Destination = (int)rawEdgeData[3];
+            var edge = new Edge((int) rawEdgeData[0])
+            {
+                RelationshipType = _graphCache.GetRelationshipType((int) rawEdgeData[1]), 
+                SourceId = (int) rawEdgeData[2], 
+                DestinationId = (int) rawEdgeData[3]
+            };
 
             DeserializeGraphEntityProperties(edge, (RedisResult[])rawEdgeData[4]);
 
@@ -144,46 +140,27 @@ namespace NRedisGraph
         {
             var type = GetValueTypeFromObject(rawScalarData[0]);
 
-            switch (type)
+            return type switch
             {
-                case ResultSetScalarType.VALUE_NULL:
-                    return null;
-                case ResultSetScalarType.VALUE_BOOLEAN:
-                    return bool.Parse((string)rawScalarData[1]);
-                case ResultSetScalarType.VALUE_DOUBLE:
-                    return (double)rawScalarData[1];
-                case ResultSetScalarType.VALUE_INTEGER:
-                    return (int)rawScalarData[1];
-                case ResultSetScalarType.VALUE_STRING:
-                    return (string)rawScalarData[1];
-                case ResultSetScalarType.VALUE_ARRAY:
-                    return DeserializeArray((RedisResult[])rawScalarData[1]);
-                case ResultSetScalarType.VALUE_NODE:
-                    return DeserializeNode((RedisResult[])rawScalarData[1]);
-                case ResultSetScalarType.VALUE_EDGE:
-                    return DeserializeEdge((RedisResult[])rawScalarData[1]);
-                case ResultSetScalarType.VALUE_PATH:
-                    return DeserializePath((RedisResult[])rawScalarData[1]);
-                case ResultSetScalarType.VALUE_UNKNOWN:
-                default:
-                    return (object)rawScalarData[1];
-            }
+                ResultSetScalarType.VALUE_NULL => null,
+                ResultSetScalarType.VALUE_BOOLEAN => bool.Parse((string) rawScalarData[1]),
+                ResultSetScalarType.VALUE_DOUBLE => (double) rawScalarData[1],
+                ResultSetScalarType.VALUE_INTEGER => (int) rawScalarData[1],
+                ResultSetScalarType.VALUE_STRING => (string) rawScalarData[1],
+                ResultSetScalarType.VALUE_ARRAY => DeserializeArray((RedisResult[]) rawScalarData[1]),
+                ResultSetScalarType.VALUE_NODE => DeserializeNode((RedisResult[]) rawScalarData[1]),
+                ResultSetScalarType.VALUE_EDGE => DeserializeEdge((RedisResult[]) rawScalarData[1]),
+                ResultSetScalarType.VALUE_PATH => DeserializePath((RedisResult[]) rawScalarData[1]),
+                ResultSetScalarType.VALUE_UNKNOWN => (object) rawScalarData[1],
+                _ => (object) rawScalarData[1]
+            };
         }
-
-        private static void DeserializeGraphEntityId(GraphEntity graphEntity, RedisResult rawEntityId) =>
-            graphEntity.Id = (int)rawEntityId;
 
         private void DeserializeGraphEntityProperties(GraphEntity graphEntity, RedisResult[] rawProperties)
         {
             foreach (RedisResult[] rawProperty in rawProperties)
             {
-                var property = new Property
-                {
-                    Name = _graphCache.GetPropertyName((int)rawProperty[0]),
-                    Value = DeserializeScalar(rawProperty.Skip(1).ToArray())
-                };
-
-                graphEntity.AddProperty(property);
+                graphEntity.Properties.Add(_graphCache.GetPropertyName((int)rawProperty[0]), DeserializeScalar(rawProperty.Skip(1).ToArray()));
             }
         }
 
@@ -207,7 +184,6 @@ namespace NRedisGraph
             return new Path(nodes, edges);
         }
 
-        private static ResultSetScalarType GetValueTypeFromObject(RedisResult rawScalarType) =>
-        (ResultSetScalarType)(int)rawScalarType;
+        private static ResultSetScalarType GetValueTypeFromObject(RedisResult rawScalarType) => (ResultSetScalarType)(int)rawScalarType;
     }
 }

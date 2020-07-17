@@ -184,37 +184,26 @@ namespace NRedisGraph.Tests
             string place = "TLV";
             int since = 2000;
 
-            Property nameProperty = new Property("name", name);
-            Property ageProperty = new Property("age", age);
-            Property doubleProperty = new Property("doubleValue", doubleValue);
-            Property trueBooleanProperty = new Property("boolValue", true);
-            Property falseBooleanProperty = new Property("boolValue", false);
-            Property nullProperty = new Property("nullValue", null);
-
-            Property placeProperty = new Property("place", place);
-            Property sinceProperty = new Property("since", since);
-
             Node expectedNode = new Node();
-            expectedNode.Id = 0;
             expectedNode.AddLabel("person");
-            expectedNode.AddProperty(nameProperty);
-            expectedNode.AddProperty(ageProperty);
-            expectedNode.AddProperty(doubleProperty);
-            expectedNode.AddProperty(trueBooleanProperty);
-            expectedNode.AddProperty(nullProperty);
+            expectedNode.Properties.Add("name", name);
+            expectedNode.Properties.Add("doubleValue", name);
+            expectedNode.Properties.Add("boolValue", true);
+            expectedNode.Properties.Add("nullValue", null);
+            expectedNode.Properties.Add("place", place);
+            expectedNode.Properties.Add("since", since);
 
             Assert.Equal("Node{labels=[person], id=0, propertyMap={name=Property{name='name', value=roi}, age=Property{name='age', value=32}, doubleValue=Property{name='doubleValue', value=3.14}, boolValue=Property{name='boolValue', value=True}, nullValue=Property{name='nullValue', value=null}}}", expectedNode.ToString());
 
             Edge expectedEdge = new Edge();
-            expectedEdge.Id = 0;
-            expectedEdge.Source = 0;
-            expectedEdge.Destination = 1;
+            expectedEdge.SourceId = 0;
+            expectedEdge.DestinationId = 1;
             expectedEdge.RelationshipType = "knows";
-            expectedEdge.AddProperty(placeProperty);
-            expectedEdge.AddProperty(sinceProperty);
-            expectedEdge.AddProperty(doubleProperty);
-            expectedEdge.AddProperty(falseBooleanProperty);
-            expectedEdge.AddProperty(nullProperty);
+            expectedEdge.Properties.Add("place", place);
+            expectedEdge.Properties.Add("since", since);
+            expectedEdge.Properties.Add("doubleValue", name);
+            expectedEdge.Properties.Add("boolValue", false);
+            expectedEdge.Properties.Add("nullValue", null);
 
             Assert.Equal("Edge{relationshipType='knows', source=0, destination=1, id=0, propertyMap={place=Property{name='place', value=TLV}, since=Property{name='since', value=2000}, doubleValue=Property{name='doubleValue', value=3.14}, boolValue=Property{name='boolValue', value=False}, nullValue=Property{name='nullValue', value=null}}}", expectedEdge.ToString());
 
@@ -294,20 +283,14 @@ namespace NRedisGraph.Tests
 
             List<ResultSet> resultSets = Enumerable.Range(0, 16).AsParallel().Select(x => _api.Query("social", "MATCH (a:person)-[r:knows]->(b:person) RETURN a,r, a.age")).ToList();
 
-            Property nameProperty = new Property("name", "roi");
-            Property ageProperty = new Property("age", 32);
-            Property lastNameProperty = new Property("lastName", "a");
-
             Node expectedNode = new Node();
-            expectedNode.Id = 0;
             expectedNode.AddLabel("person");
-            expectedNode.AddProperty(nameProperty);
-            expectedNode.AddProperty(ageProperty);
+            expectedNode.Properties.Add("name", "roi");
+            expectedNode.Properties.Add("age", 32);
 
             Edge expectedEdge = new Edge();
-            expectedEdge.Id = 0;
-            expectedEdge.Source = 0;
-            expectedEdge.Destination = 1;
+            expectedEdge.SourceId = 0;
+            expectedEdge.DestinationId = 1;
             expectedEdge.RelationshipType = "knows";
 
             foreach (ResultSet resultSet in resultSets)
@@ -332,18 +315,17 @@ namespace NRedisGraph.Tests
                 Assert.Equal(new object[] { expectedNode, expectedEdge, 32 }, record.Values);
             }
 
-            //test for update in local cache
-            expectedNode.RemoveProperty("name");
-            expectedNode.RemoveProperty("age");
-            expectedNode.AddProperty(lastNameProperty);
+            expectedNode = new Node(2);
+            expectedNode.Properties.Remove("name");
+            expectedNode.Properties.Remove("age");
+            expectedNode.Properties.Add("lastName", "a");
             expectedNode.RemoveLabel("person");
             expectedNode.AddLabel("worker");
-            expectedNode.Id = 2;
 
+            expectedEdge = new Edge(1);
             expectedEdge.RelationshipType = "worksWith";
-            expectedEdge.Source = 2;
-            expectedEdge.Destination = 3;
-            expectedEdge.Id = 1;
+            expectedEdge.SourceId = 2;
+            expectedEdge.DestinationId = 3;
 
             Assert.NotNull(_api.Query("social", "CREATE (:worker{lastName:'a'})"));
             Assert.NotNull(_api.Query("social", "CREATE (:worker{lastName:'b'})"));
@@ -381,21 +363,14 @@ namespace NRedisGraph.Tests
 
             List<ResultSet> resultSets = Enumerable.Range(0, 16).AsParallel().Select(x => _api.Query("social", "MATCH (a:person)-[r:knows]->(b:person) RETURN a,r")).ToList();
 
-            //expected objects init
-            Property nameProperty = new Property("name", "roi");
-            Property ageProperty = new Property("age", 32);
-            Property lastNameProperty = new Property("lastName", "a");
-
             Node expectedNode = new Node();
-            expectedNode.Id = 0;
             expectedNode.AddLabel("person");
-            expectedNode.AddProperty(nameProperty);
-            expectedNode.AddProperty(ageProperty);
+            expectedNode.Properties.Add("name", "roi");
+            expectedNode.Properties.Add("age", 32);
 
             Edge expectedEdge = new Edge();
-            expectedEdge.Id = 0;
-            expectedEdge.Source = 0;
-            expectedEdge.Destination = 1;
+            expectedEdge.SourceId = 0;
+            expectedEdge.DestinationId = 1;
             expectedEdge.RelationshipType = "knows";
 
             ResultSet resultSet = _api.Query("social", "MATCH (a:person)-[r:knows]->(b:person) RETURN a,r");
@@ -418,16 +393,17 @@ namespace NRedisGraph.Tests
 
             //test for local cache updates
 
-            expectedNode.RemoveProperty("name");
-            expectedNode.RemoveProperty("age");
-            expectedNode.AddProperty(lastNameProperty);
+            expectedNode = new Node(2);
+            expectedNode.Properties.Remove("name");
+            expectedNode.Properties.Remove("age");
+            expectedNode.Properties.Add("lastName", "a");
             expectedNode.RemoveLabel("person");
             expectedNode.AddLabel("worker");
-            expectedNode.Id = 2;
+
+            expectedEdge = new Edge(1);
             expectedEdge.RelationshipType = "worksWith";
-            expectedEdge.Source = 2;
-            expectedEdge.Destination = 3;
-            expectedEdge.Id = 1;
+            expectedEdge.SourceId = 2;
+            expectedEdge.DestinationId = 3;
             Assert.NotNull(_api.Query("social", "CREATE (:worker{lastName:'a'})"));
             Assert.NotNull(_api.Query("social", "CREATE (:worker{lastName:'b'})"));
             Assert.NotNull(_api.Query("social", "MATCH (a:worker), (b:worker) WHERE (a.lastName = 'a' AND b.lastName='b')  CREATE (a)-[:worksWith]->(b)"));
